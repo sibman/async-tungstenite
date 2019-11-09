@@ -17,11 +17,11 @@ use futures::StreamExt;
 use log::*;
 use tungstenite::protocol::Message;
 
-use tokio::io::AsyncReadExt;
-use tokio_tungstenite::connect_async;
+use async_std::task;
+use async_std::prelude::*;
+use async_tungstenite::connect_async;
 
-#[tokio::main]
-async fn main() {
+async fn run() {
     let _ = env_logger::try_init();
 
     // Specify the server address to which the client will be connecting.
@@ -36,7 +36,7 @@ async fn main() {
     // read data from stdin and then send it to the event loop over a standard
     // futures channel.
     let (stdin_tx, mut stdin_rx) = futures::channel::mpsc::unbounded();
-    tokio::spawn(read_stdin(stdin_tx));
+    task::spawn(read_stdin(stdin_tx));
 
     // After the TCP connection has been established, we set up our client to
     // start forwarding data.
@@ -66,10 +66,14 @@ async fn main() {
     }
 }
 
+fn main() {
+    task::block_on(run())
+}
+
 // Our helper method which will read data from stdin and send it along the
 // sender provided.
 async fn read_stdin(tx: futures::channel::mpsc::UnboundedSender<Message>) {
-    let mut stdin = tokio::io::stdin();
+    let mut stdin = async_std::io::stdin();
     loop {
         let mut buf = vec![0; 1024];
         let n = match stdin.read(&mut buf).await {
